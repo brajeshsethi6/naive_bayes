@@ -1,47 +1,55 @@
 import pandas as pd
 from sklearn.naive_bayes import GaussianNB
-from sklearn.metrics import accuracy_score
 
-data = pd.read_csv('data.csv')
+class WeatherPredictor:
+    def __init__(self, data_path):
+        self.data = pd.read_csv(data_path)
+        self.df_encoded = None
+        self.naive_bayes = GaussianNB()
 
-data_dict = {
-    'Weather': data['Weather'].tolist(),
-    'Play': data['Play'].tolist()
-}
+    def preprocess_data(self):
+        data_dict = {
+            'Weather': self.data['Weather'].tolist(),
+            'Play': self.data['Play'].tolist()
+        }
 
-df = pd.DataFrame(data_dict)
-df_encoded = pd.get_dummies(df, columns=['Weather'])
+        df = pd.DataFrame(data_dict)
+        self.df_encoded = pd.get_dummies(df, columns=['Weather'])
+        #print(self.df_encoded)
+    
+    def train_model(self):
+        X = self.df_encoded.drop(columns=['Play'])
+        y = self.df_encoded['Play']
+        self.naive_bayes.fit(X, y)
 
-X = df_encoded.drop(columns=['Play'])
-y = df_encoded['Play']
+    def predict_play(self, outlook):
+        if self.df_encoded is None:
+            raise ValueError("Please preprocess the data and train the model first.")
 
-naive_bayes = GaussianNB()
-naive_bayes.fit(X, y)
+        all_features = list(self.df_encoded.drop(columns=['Play']).columns)
+        input_data = pd.DataFrame([[0] * len(all_features)], columns=all_features)
 
-def predict_play(outlook):
-    all_features = list(X.columns)
-    input_data = pd.DataFrame([[0] * len(all_features)], columns=all_features)
+        if outlook == 'Sunny':
+            input_data['Weather_Sunny'] = 1
+        elif outlook == 'Rainy':
+            input_data['Weather_Rainy'] = 1
+        elif outlook == 'Overcast':
+            input_data['Weather_Overcast'] = 1
+        else:
+            raise ValueError("Invalid input. Please enter 'Sunny', 'Rainy', or 'Overcast'.")
 
-    if outlook == 'Sunny':
-        input_data['Weather_Sunny'] = 1
-    elif outlook == 'Rainy':
-        input_data['Weather_Rainy'] = 1
-    elif outlook == 'Overcast':
-        input_data['Weather_Overcast'] = 1
-    else:
-        raise ValueError("Invalid input. Please enter 'Sunny', 'Rainy', or 'Overcast'.")
+        prediction = self.naive_bayes.predict(input_data)
+        probabilities = self.naive_bayes.predict_proba(input_data)
+        return prediction[0], probabilities[0]
 
-    prediction = naive_bayes.predict(input_data)
-    probabilities = naive_bayes.predict_proba(input_data)
-    return prediction[0], probabilities[0]
+if __name__ == "__main__":
+    data_path = 'data.csv'
+    weather_predictor = WeatherPredictor(data_path)
+    weather_predictor.preprocess_data()
+    weather_predictor.train_model()
 
-user_input = input("Enter 'Sunny' or 'Rainy' or 'Overcast': ")
+    user_input = input("Enter 'Sunny' or 'Rainy' or 'Overcast': ")
+    predicted_play, probabilities = weather_predictor.predict_play(user_input)
 
-
-predicted_play, probabilities = predict_play(user_input)
-
-print(type(predicted_play))
-
-# print result 
-print(f"Predicted 'Play': {predicted_play}")
-print(f"Probability of 'Yes': {probabilities[0]}, Probability of 'No': {probabilities[1]}")
+    print(f"Predicted 'Play': {predicted_play}")
+    print(f"Probability of 'Yes': {probabilities[0]}, Probability of 'No': {probabilities[1]}")
